@@ -13,7 +13,6 @@ import {registerStandingOrdersList} from './standing-orders-list.js';
 import {registerFeedItemGet} from './feed-item-get.js';
 import {registerFeedItemSpendingCategoryUpdate} from './feed-item-spending-category-update.js';
 import {registerFeedItemNoteUpdate} from './feed-item-note-update.js';
-import {registerFeedItemAttachmentUpload} from './feed-item-attachment-upload.js';
 import {registerFeedItemAttachmentDownload} from './feed-item-attachment-download.js';
 import {registerPaymentCreate} from './payment-create.js';
 import {registerPayeeCreate} from './payee-create.js';
@@ -41,7 +40,6 @@ export function registerAll(server: McpServer, config: Config): void {
 	registerFeedItemGet(server, config);
 	registerFeedItemSpendingCategoryUpdate(server, config);
 	registerFeedItemNoteUpdate(server, config);
-	registerFeedItemAttachmentUpload(server, config);
 	registerFeedItemAttachmentDownload(server, config);
 	registerPaymentCreate(server, config);
 	registerPayeeCreate(server, config);
