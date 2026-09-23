@@ -1,10 +1,14 @@
 // Starling Bank API configuration and utilities
-import {createHash, createSign} from 'node:crypto';
+import {createHash, createPrivateKey, createSign} from 'node:crypto';
 
 export const STARLING_BANK_BASE_URL = process.env.STARLING_BANK_BASE_URL || 'https://api.starlingbank.com';
 
-// ECDSA key information for signing requests
+// Key information for signing requests (RSA or EC, detected from the key itself)
 const {STARLING_BANK_PRIVATE_KEY_PEM, STARLING_BANK_PRIVATE_KEY_UID} = process.env;
+
+// Signature algorithm names, keyed by asymmetricKeyType, as understood by Starling's API
+const RSA_SIGNATURE_ALGORITHM = 'rsa-sha512';
+const ECDSA_SIGNATURE_ALGORITHM = 'ecdsa-sha512';
 
 // Common helper to create base headers
 function createBaseHeaders(accessToken: string): Record<string, string> {
@@ -57,6 +61,22 @@ async function parseResponse(response: Response): Promise<unknown> {
 	return text;
 }
 
+// Determine the Signature header's algorithm value from the key type, rather
+// than assuming ECDSA - uploaded keys may be RSA or EC.
+function getSignatureAlgorithm(privateKeyPem: string): string {
+	const {asymmetricKeyType} = createPrivateKey(privateKeyPem);
+
+	if (asymmetricKeyType === 'rsa') {
+		return RSA_SIGNATURE_ALGORITHM;
+	}
+
+	if (asymmetricKeyType === 'ec') {
+		return ECDSA_SIGNATURE_ALGORITHM;
+	}
+
+	throw new Error(`Unsupported STARLING_BANK_PRIVATE_KEY_PEM key type "${asymmetricKeyType}". Expected an RSA or EC (ECDSA) private key.`);
+}
+
 // Function to create message signature for payment endpoints
 function createMessageSignature(
 	method: string,
@@ -78,16 +98,17 @@ function createMessageSignature(
 		`Digest: ${digest}`,
 	].join('\n');
 
+	const algorithm = getSignatureAlgorithm(STARLING_BANK_PRIVATE_KEY_PEM);
+
 	const sign = createSign('SHA512');
 	sign.update(contentToSign, 'utf8');
 	sign.end();
 
 	// Sign with the private key and encode as base64
-	// Use the EC private key format
 	const signature = sign.sign(STARLING_BANK_PRIVATE_KEY_PEM, 'base64');
 
 	// Return the signature header value
-	return `Signature keyid="${STARLING_BANK_PRIVATE_KEY_UID}",algorithm="ecdsa-sha512",headers="(request-target) Date Digest",signature="${signature}"`;
+	return `Signature keyid="${STARLING_BANK_PRIVATE_KEY_UID}",algorithm="${algorithm}",headers="(request-target) Date Digest",signature="${signature}"`;
 }
 
 // Utility function to make authenticated API calls
